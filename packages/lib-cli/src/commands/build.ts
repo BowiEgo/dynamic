@@ -1,14 +1,10 @@
-const rollup = require('rollup')
-import vue from 'rollup-plugin-vue'
-import babel from 'rollup-plugin-babel'
-import commonjs from 'rollup-plugin-commonjs'
-import css from 'rollup-plugin-css-only'
+import webpack from 'webpack'
+import { VueLoaderPlugin } from 'vue-loader'
 // import chokidar from 'chokidar'
-// import { rollup } from 'rollup'
 import { ora, consola } from '../common/logger'
 import { join, relative } from 'path'
 import { remove, copy, readdirSync } from 'fs-extra'
-import { ROOT, SRC_DIR, ES_DIR } from '../common/constant'
+import { ROOT, SRC_DIR, ES_DIR, DIST_DIR } from '../common/constant'
 import {
   isDir,
   isSfc,
@@ -19,35 +15,93 @@ import {
   isTestDir,
   setNodeEnv,
 } from '../common'
+import { WebpackConfig } from '../common/types'
 
-function generateInputOpts(path: string, filename: string) {
+const CSS_LOADERS = [
+  'style-loader',
+  'css-loader',
+  {
+    loader: 'postcss-loader',
+  },
+]
+
+function generateWebpackCfg(path: string, filename: string): WebpackConfig {
   return {
-    input: join(path, 'index.js'),
-    plugins: [
-      babel({
-        exclude: 'node_modules/**',
-      }),
-      commonjs(),
-      vue({ css: false }),
-      css({ output: `style/${filename}.css` }),
-    ],
+    entry: {
+      main: join(path, 'index.js'),
+    },
+    output: {
+      filename: `${filename}.js`,
+      path: DIST_DIR,
+      libraryTarget: 'system',
+      iife: true,
+    },
+    mode: 'production',
+    module: {
+      rules: [
+        {
+          test: /\.css$/,
+          use: CSS_LOADERS,
+        },
+        {
+          test: /\.less$/,
+          // sideEffects: true,
+          use: [...CSS_LOADERS, 'less-loader'],
+        },
+        {
+          test: /\.vue$/,
+          loader: 'vue-loader',
+        },
+      ],
+    },
+    plugins: [new VueLoaderPlugin()],
+    resolveLoader: {
+      modules: [join(__dirname, '../../node_modules')],
+    },
+    optimization: {
+      splitChunks: {
+        chunks: 'async',
+        minSize: 2,
+        minRemainingSize: 0,
+        minChunks: 1,
+        maxAsyncRequests: 30,
+        maxInitialRequests: 30,
+        enforceSizeThreshold: 50000,
+        cacheGroups: {
+          defaultVendors: {
+            test: /[\\/]node_modules[\\/]/,
+            priority: -10,
+            reuseExistingChunk: true,
+          },
+          default: {
+            minChunks: 2,
+            priority: -20,
+            reuseExistingChunk: true,
+          },
+        },
+      },
+    },
   }
 }
 
-function generateOutputOpts(filename: string) {
-  return {
-    file: `dist/${filename}-umd.js`,
-    format: 'umd',
-    name: filename,
-  }
-}
+async function compileDir(dir: string, filename: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const config = generateWebpackCfg(dir, filename)
 
-async function compileDir(dir: string, filename: string) {
-  const inputOptions = generateInputOpts(dir, filename)
-  const outputOptions = generateOutputOpts(filename)
+    console.log('config', config)
 
-  const bundle = await rollup.rollup(inputOptions)
-  await bundle.write(outputOptions)
+    webpack(config, (err: any, stats: any) => {
+      if (err || stats.hasErrors()) {
+        if (stats.hasErrors()) {
+          const info = stats.toJson()
+          console.error(info.errors)
+        }
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  })
 }
 
 async function runBuildTasks() {
@@ -62,12 +116,11 @@ async function runBuildTasks() {
         //   return remove(filePath)
         // }
 
-        if (isDir(filePath) && filename !== 'utils') {
-          console.log(filePath, 'is directory')
+        const DIR_EXCLUDES = ['utils', 'assets']
+
+        if (isDir(filePath) && !DIR_EXCLUDES.includes(filename)) {
           return compileDir(filePath, filename)
         }
-
-        // return compileFile(filePath)
       }),
     )
     consola.success('Compile successfully')
@@ -78,7 +131,6 @@ async function runBuildTasks() {
 }
 
 export async function build(cmd: { watch?: boolean } = {}) {
-  console.log('cmd', cmd)
   try {
     // await clean()
     // await installDependencies()

@@ -33,7 +33,7 @@ export const LIB_CONFIG_FILE = join(ROOT, 'lib.config.js')
 // export const CACHE_DIR = join(ROOT, 'node_modules/.cache')
 
 // // Relative paths
-// export const DIST_DIR = join(__dirname, '../../dist')
+export const DIST_DIR = join(ROOT, 'dist')
 // export const CONFIG_DIR = join(__dirname, '../config')
 
 // // Dist files

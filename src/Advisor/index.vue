@@ -28,43 +28,41 @@ export default {
   props: {
     staffId: {
       type: String,
-      default: ''
+      default: '',
     },
     monicker: {
       type: String,
-      default: '--'
+      default: '--',
     },
     picture: {
       type: String,
-      default: ''
+      default: '',
     },
     serial: {
       type: String,
-      default: 'XX'
+      default: 'XX',
     },
     telephone: {
       type: String,
-      default: '--'
+      default: '--',
     },
     depcname: {
       type: String,
-      default: '--'
+      default: '--',
     },
     jobcname: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   computed: {
     tel() {
       return 'tel:' + this.telephone.toString()
     },
   },
-  methods: {
-    bem() {
-      return bem.call(...arguments)
-    },
-  }
+  created() {
+    console.log(bem('Advisor'))
+  },
 }
 </script>
 
@@ -153,13 +151,13 @@ export default {
       height: 15px;
       background-size: 100%;
       background-repeat: no-repeat;
-      background-image: url('../../assets/images/1@2x.png');
+      background-image: url('../assets/images/1@2x.png');
       transform: translateY(4px);
     }
   }
   &__phone {
     &::before {
-      background-image: url('../../assets/images/phone@2x.png');
+      background-image: url('../assets/images/phone@2x.png');
     }
   }
 }

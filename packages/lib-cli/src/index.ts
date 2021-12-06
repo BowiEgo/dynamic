@@ -12,9 +12,6 @@ program
   .description('Compile components in production mode')
   .action(build)
 
-program
-  .command('serve')
-  .description('Compile components in production mode')
-  .action(serve)
+program.command('serve').description('Serve components in development mode').action(serve)
 
 program.parse()
