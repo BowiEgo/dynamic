@@ -1,4 +1,5 @@
 import webpack from 'webpack'
+import inquirer from 'inquirer'
 import { VueLoaderPlugin } from 'vue-loader'
 // import chokidar from 'chokidar'
 import { ora, consola } from '../common/logger'
@@ -7,15 +8,19 @@ import { remove, copy, readdirSync } from 'fs-extra'
 import { ROOT, SRC_DIR, ES_DIR, DIST_DIR } from '../common/constant'
 import {
   isDir,
-  isSfc,
-  isAsset,
-  isStyle,
-  isScript,
-  isDemoDir,
-  isTestDir,
-  setNodeEnv,
+  // isSfc,
+  // isAsset,
+  // isStyle,
+  // isScript,
+  // isDemoDir,
+  // isTestDir,
+  // setNodeEnv,
 } from '../common'
 import { WebpackConfig } from '../common/types'
+
+interface promptAnswer {
+  files: string[]
+}
 
 const CSS_LOADERS = [
   'style-loader',
@@ -25,16 +30,15 @@ const CSS_LOADERS = [
   },
 ]
 
-function generateWebpackCfg(path: string, filename: string): WebpackConfig {
-  return {
-    entry: {
-      main: join(path, 'index.js'),
-    },
+function generateWebpackCfg(filenames: Array<string>): WebpackConfig {
+  const config: any = {
+    entry: {},
     output: {
-      filename: `${filename}.js`,
+      filename: `[name].js`,
+      chunkFilename: 'chunk.js',
       path: DIST_DIR,
       libraryTarget: 'system',
-      iife: true,
+      // umdNamedDefine: true,
     },
     mode: 'production',
     module: {
@@ -60,39 +64,30 @@ function generateWebpackCfg(path: string, filename: string): WebpackConfig {
     },
     optimization: {
       splitChunks: {
-        chunks: 'async',
-        minSize: 2,
-        minRemainingSize: 0,
-        minChunks: 1,
-        maxAsyncRequests: 30,
-        maxInitialRequests: 30,
-        enforceSizeThreshold: 50000,
-        cacheGroups: {
-          defaultVendors: {
-            test: /[\\/]node_modules[\\/]/,
-            priority: -10,
-            reuseExistingChunk: true,
-          },
-          default: {
-            minChunks: 2,
-            priority: -20,
-            reuseExistingChunk: true,
-          },
-        },
+        chunks: 'all',
       },
     },
+    externals: {
+      vue: 'vue',
+      lodash: 'lodash',
+    },
   }
+
+  filenames.map(filename => {
+    config.entry[filename] = join(join(SRC_DIR, filename), 'index.js')
+  })
+  return config
 }
 
-async function compileDir(dir: string, filename: string): Promise<void> {
+async function compileDir(filenames: Array<string>): Promise<void> {
   return new Promise((resolve, reject) => {
-    const config = generateWebpackCfg(dir, filename)
+    const config = generateWebpackCfg(filenames)
 
-    console.log('config', config)
+    // console.log('config', config)
 
     webpack(config, (err: any, stats: any) => {
       if (err || stats.hasErrors()) {
-        if (stats.hasErrors()) {
+        if (stats?.hasErrors()) {
           const info = stats.toJson()
           console.error(info.errors)
         }
@@ -108,22 +103,50 @@ async function runBuildTasks() {
   try {
     const files = readdirSync(SRC_DIR)
 
-    await Promise.all(
-      files.map(filename => {
-        const filePath = join(SRC_DIR, filename)
+    let filenames: string[] = []
 
-        // if (isDemoDir(filePath) || isTestDir(filePath)) {
-        //   return remove(filePath)
-        // }
+    const filesMap = files.map(filename => {
+      return {
+        name: filename,
+      }
+    })
 
-        const DIR_EXCLUDES = ['utils', 'assets']
+    inquirer
+      .prompt([
+        {
+          type: 'checkbox',
+          message: 'Choose files to compile',
+          name: 'files',
+          choices: [new inquirer.Separator(' = Components = '), ...filesMap],
+          validate(answer: any) {
+            if (answer.length < 1) {
+              return 'You must choose at least one file.'
+            }
 
-        if (isDir(filePath) && !DIR_EXCLUDES.includes(filename)) {
-          return compileDir(filePath, filename)
-        }
-      }),
-    )
-    consola.success('Compile successfully')
+            return true
+          },
+        },
+      ])
+      .then(async (answers: promptAnswer) => {
+        console.log(answers)
+        // await Promise.all(
+        answers.files.map(filename => {
+          const filePath = join(SRC_DIR, filename)
+
+          // if (isDemoDir(filePath) || isTestDir(filePath)) {
+          //   return remove(filePath)
+          // }
+
+          const DIR_EXCLUDES = ['utils', 'assets']
+
+          if (isDir(filePath) && !DIR_EXCLUDES.includes(filename)) {
+            filenames.push(filename)
+          }
+        })
+        // )
+        await compileDir(filenames)
+        consola.success('Compile successfully')
+      })
   } catch (err) {
     console.log(err)
     throw err

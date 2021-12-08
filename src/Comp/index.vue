@@ -5,11 +5,19 @@
 </template>
 
 <script>
+const getCreate = () => import('../utils/create')
+
+getCreate().then(({ createNamespace }) => {
+  const [name, bem] = createNamespace('Comp')
+  console.log(bem('Comp'))
+})
+
 export default {
   name: 'HelloWorld',
   props: {
     msg: String,
   },
+  created() {},
 }
 </script>
 

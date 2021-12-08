@@ -19,9 +19,15 @@
 </template>
 
 <script>
-import { createNamespace } from '../utils/create'
+import _ from 'lodash'
+const getCreate = () => import('../utils/create')
+getCreate().then(({ createNamespace }) => {
+  const [name, bem] = createNamespace('Advisor')
+  console.log(bem('Advisor'))
+})
+// import { createNamespace } from '../utils/create'
 
-const [name, bem] = createNamespace('Advisor')
+// const [name, bem] = createNamespace('Advisor')
 
 export default {
   name: name,
@@ -61,7 +67,7 @@ export default {
     },
   },
   created() {
-    console.log(bem('Advisor'))
+    console.log(_.join(['Another', 'module', 'loaded!'], ' '))
   },
 }
 </script>
